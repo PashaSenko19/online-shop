@@ -14,6 +14,9 @@ def person(request, name):
 def product(request):
     return HttpResponse('List products')
 
+def product_buy(request):
+    return HttpResponse('prise')
+
 
 def pageNotFound(request, exception):
     return HttpResponseNotFound('<h1>Страница не найдена</h1>')
