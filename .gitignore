@@ -1,5 +1,7 @@
 .venv/
 .idea/
+.idea/workspace.xml
+
 
 # Local Folder #
 api_tests/
