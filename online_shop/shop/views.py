@@ -1,50 +1,39 @@
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 import json
 import datetime
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from .models import *
+from .utils import cookieCart, cartData, guestOrder
 
 
 def shop(request):
-    if request.user.is_authenticated:
-        customer = request.user.customer
-        order, created = Order.objects.get_or_create(customer=customer, complete=False)
-        items = order.orderitems_set.all()
-        cartItems = order.get_cart_items
-    else:
-        items = []
-        order = {'get_cart_total': 0, 'get_cart_items': 0}
-        cartItems = order['get_cart_items']
+    data = cartData(request)
+
+    cartItems = data['cartItems']
 
     products = Product.objects.all()
-    context = {'products': products, 'cartItems': cartItems, 'shipping': False}
+    context = {'products': products, 'cartItems': cartItems}
     return render(request, 'shop/shop.html', context)
 
 
 def cart(request):
-    if request.user.is_authenticated:
-        customer = request.user.customer
-        order, created = Order.objects.get_or_create(customer=customer, complete=False)
-        items = order.orderitems_set.all()
-        cartItems = order.get_cart_items
-    else:
-        items = []
-        order = {'get_cart_total': 0, 'get_cart_items': 0}
-        cartItems = order['get_cart_items']
+    data = cartData(request)
+
+    cartItems = data['cartItems']
+    order = data['order']
+    items = data['items']
+
     context = {'items': items, 'order': order, 'cartItems': cartItems, 'shipping': False}
     return render(request, 'shop/cart.html', context)
 
 
 def chekout(request):
-    if request.user.is_authenticated:
-        customer = request.user.customer
-        order, created = Order.objects.get_or_create(customer=customer, complete=False)
-        items = order.orderitems_set.all()
-        cartItems = order.get_cart_items
-    else:
-        items = []
-        order = {'get_cart_total': 0, 'get_cart_items': 0, 'shipping': False}
-        cartItems = order['get_cart_items']
+    data = cartData(request)
+
+    cartItems = data['cartItems']
+    order = data['order']
+    items = data['items']
+
     context = {'items': items, 'order': order, 'cartItems': cartItems}
     return render(request, 'shop/chekout.html', context)
 
@@ -83,24 +72,27 @@ def processOrder(request):
     if request.user.is_authenticated:
         customer = request.user.customer
         order, created = Order.objects.get_or_create(customer=customer, complete=False)
-        total = data['form']['total']
-        order.transaction_id = transaction_id
 
-        if int(total) == order.get_cart_total:
-            order.complete = True
-
-        order.save()
-
-        if order.shipping:
-            ShippingAddress.objects.create(
-               customer=customer,
-               order=order,
-               address=data['shipping']['address'],
-               city=data['shipping']['city'],
-               region=data['shipping']['region'],
-               zipcode=data['shipping']['zipcode'],
-            )
     else:
-        print('User in not logged in')
+        customer, order = guestOrder(request, data)
+
+    total = data['form']['total']
+    order.transaction_id = transaction_id
+
+    if int(total) == order.get_cart_total:
+        order.complete = True
+
+    order.save()
+
+    if order.shipping:
+        ShippingAddress.objects.create(
+            customer=customer,
+            order=order,
+            address=data['shipping']['address'],
+            city=data['shipping']['city'],
+            region=data['shipping']['region'],
+            zipcode=data['shipping']['zipcode'],
+        )
+
     return JsonResponse('Payment complete!', safe=False)
 
